@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SI 待办管理系统</title>
+    <title>待办管理系统</title>
     <style>
         * {
             margin: 0;
@@ -200,6 +200,77 @@
             font-size: 11px;
             margin-left: 8px;
         }
+        .priority-tag {
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            margin-left: 8px;
+            color: white;
+            cursor: pointer;
+        }
+        .priority-urgent {
+            background: #ff4444;
+        }
+        .priority-important {
+            background: #ff9800;
+        }
+        .priority-normal {
+            background: #2196f3;
+        }
+        .priority-low {
+            background: #8bc34a;
+        }
+        .priority-select {
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 11px;
+            margin-left: 8px;
+            border: none;
+            color: white;
+            cursor: pointer;
+            outline: none;
+        }
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .modal h2 {
+            color: #333;
+            margin: 0;
+        }
+        .close-modal {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #999;
+        }
+        .close-modal:hover {
+            color: #333;
+        }
         .admin-panel {
             grid-column: 1 / -1;
         }
@@ -262,6 +333,15 @@
                     <textarea id="createContent" placeholder="请输入待办内容"></textarea>
                 </div>
                 <div class="form-group">
+                    <label>紧急程度</label>
+                    <select id="createPriority">
+                        <option value="3">常规</option>
+                        <option value="1">紧急</option>
+                        <option value="2">重要但不紧急</option>
+                        <option value="4">低优先级</option>
+                    </select>
+                </div>
+                <div class="form-group">
                     <label>截止时间</label>
                     <input type="datetime-local" id="createDeadline">
                 </div>
@@ -289,11 +369,53 @@
                     <textarea id="broadcastContent" placeholder="请输入推送内容"></textarea>
                 </div>
                 <div class="form-group">
+                    <label>紧急程度</label>
+                    <select id="broadcastPriority">
+                        <option value="3">常规</option>
+                        <option value="1">紧急</option>
+                        <option value="2">重要但不紧急</option>
+                        <option value="4">低优先级</option>
+                    </select>
+                </div>
+                <div class="form-group">
                     <label>截止时间</label>
                     <input type="datetime-local" id="broadcastDeadline">
                 </div>
                 <button class="btn btn-danger" onclick="broadcastTodo()">全员推送</button>
             </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay hidden" id="editModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>✏️ 编辑待办</h2>
+                <button class="close-modal" onclick="closeEditModal()">&times;</button>
+            </div>
+            <input type="hidden" id="editTodoId">
+            <div class="form-group">
+                <label>标题 *</label>
+                <input type="text" id="editTitle" placeholder="请输入待办标题">
+            </div>
+            <div class="form-group">
+                <label>内容</label>
+                <textarea id="editContent" placeholder="请输入待办内容"></textarea>
+            </div>
+            <div class="form-group">
+                <label>紧急程度</label>
+                <select id="editPriority">
+                    <option value="1">紧急</option>
+                    <option value="2">重要但不紧急</option>
+                    <option value="3">常规</option>
+                    <option value="4">低优先级</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>截止时间</label>
+                <input type="datetime-local" id="editDeadline">
+            </div>
+            <button class="btn btn-primary" onclick="saveEdit()">保存修改</button>
+            <button class="btn btn-warning" onclick="closeEditModal()">取消</button>
         </div>
     </div>
 
@@ -339,6 +461,16 @@
             loadTodos();
         }
 
+        function getPriorityInfo(priority) {
+            const priorityMap = {
+                'URGENT': { class: 'priority-urgent', label: '紧急', level: 1 },
+                'IMPORTANT': { class: 'priority-important', label: '重要但不紧急', level: 2 },
+                'NORMAL': { class: 'priority-normal', label: '常规', level: 3 },
+                'LOW': { class: 'priority-low', label: '低优先级', level: 4 }
+            };
+            return priorityMap[priority] || priorityMap.NORMAL;
+        }
+
         async function loadTodos() {
             if (!currentUser) {
                 showMessage('请先选择用户', 'error');
@@ -363,11 +495,21 @@
                         'OVERDUE': '已逾期'
                     }[todo.status];
 
+                    const priority = getPriorityInfo(todo.priority);
                     const deadline = todo.deadline ? formatDate(todo.deadline) : '无截止时间';
                     const broadcastTag = todo.broadcast ? '<span class="broadcast-tag">全员推送</span>' : '';
+                    
+                    const prioritySelect = todo.status !== 'COMPLETED' ? `
+                        <select class="priority-select ${priority.class}" onchange="updatePriority('${todo.id}', this.value)" onclick="event.stopPropagation()">
+                            <option value="1" ${priority.level === 1 ? 'selected' : ''}>紧急</option>
+                            <option value="2" ${priority.level === 2 ? 'selected' : ''}>重要但不紧急</option>
+                            <option value="3" ${priority.level === 3 ? 'selected' : ''}>常规</option>
+                            <option value="4" ${priority.level === 4 ? 'selected' : ''}>低优先级</option>
+                        </select>
+                    ` : `<span class="priority-tag ${priority.class}">${priority.label}</span>`;
 
                     li.innerHTML = `
-                        <h3>${todo.title}${broadcastTag}</h3>
+                        <h3>${todo.title}${broadcastTag}${prioritySelect}</h3>
                         <p>${todo.content || '无内容'}</p>
                         <div class="todo-meta">
                             <span>截止: ${deadline}</span>
@@ -376,7 +518,7 @@
                         ${todo.status !== 'COMPLETED' ? `
                             <div style="margin-top: 10px;">
                                 <button class="btn btn-success" onclick="completeTodo('${todo.id}')">完成</button>
-                                <button class="btn btn-warning" onclick="editTodo('${todo.id}')">编辑</button>
+                                <button class="btn btn-warning" onclick="openEditModal('${todo.id}')">编辑</button>
                                 <button class="btn btn-danger" onclick="deleteTodo('${todo.id}')">删除</button>
                             </div>
                         ` : ''}
@@ -396,6 +538,7 @@
 
             const title = document.getElementById('createTitle').value;
             const content = document.getElementById('createContent').value;
+            const priority = document.getElementById('createPriority').value;
             const deadlineInput = document.getElementById('createDeadline').value;
 
             if (!title) {
@@ -406,7 +549,8 @@
             const body = {
                 userId: currentUser.userId,
                 title: title,
-                content: content
+                content: content,
+                priority: parseInt(priority)
             };
 
             if (deadlineInput) {
@@ -424,6 +568,7 @@
                 showMessage('创建成功', 'success');
                 document.getElementById('createTitle').value = '';
                 document.getElementById('createContent').value = '';
+                document.getElementById('createPriority').value = '3';
                 document.getElementById('createDeadline').value = '';
                 loadTodos();
             } else {
@@ -465,19 +610,84 @@
             }
         }
 
-        function editTodo(todoId) {
-            const newTitle = prompt('请输入新标题：');
-            if (newTitle === null) return;
+        async function updatePriority(todoId, priorityLevel) {
+            const body = {
+                todoId: todoId,
+                priority: parseInt(priorityLevel)
+            };
 
-            const newContent = prompt('请输入新内容：');
+            const response = await fetch(`${API_BASE}/update`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
 
-            updateTodoApi(todoId, newTitle, newContent);
+            const result = await response.json();
+            if (result.success) {
+                showMessage('优先级已更新', 'success');
+                loadTodos();
+            } else {
+                showMessage(result.message, 'error');
+            }
         }
 
-        async function updateTodoApi(todoId, title, content) {
-            const body = { todoId: todoId };
-            if (title) body.title = title;
-            if (content !== null) body.content = content;
+        async function openEditModal(todoId) {
+            const response = await fetch(`${API_BASE}/detail?todoId=${todoId}`);
+            const result = await response.json();
+            
+            if (result.success) {
+                const todo = result.data;
+                document.getElementById('editTodoId').value = todo.id;
+                document.getElementById('editTitle').value = todo.title || '';
+                document.getElementById('editContent').value = todo.content || '';
+                
+                const priority = getPriorityInfo(todo.priority);
+                document.getElementById('editPriority').value = priority.level;
+                
+                if (todo.deadline) {
+                    const deadline = new Date(todo.deadline);
+                    const year = deadline.getFullYear();
+                    const month = String(deadline.getMonth() + 1).padStart(2, '0');
+                    const day = String(deadline.getDate()).padStart(2, '0');
+                    const hours = String(deadline.getHours()).padStart(2, '0');
+                    const minutes = String(deadline.getMinutes()).padStart(2, '0');
+                    document.getElementById('editDeadline').value = `${year}-${month}-${day}T${hours}:${minutes}`;
+                } else {
+                    document.getElementById('editDeadline').value = '';
+                }
+                
+                document.getElementById('editModal').classList.remove('hidden');
+            } else {
+                showMessage(result.message, 'error');
+            }
+        }
+
+        function closeEditModal() {
+            document.getElementById('editModal').classList.add('hidden');
+        }
+
+        async function saveEdit() {
+            const todoId = document.getElementById('editTodoId').value;
+            const title = document.getElementById('editTitle').value;
+            const content = document.getElementById('editContent').value;
+            const priority = document.getElementById('editPriority').value;
+            const deadlineInput = document.getElementById('editDeadline').value;
+
+            if (!title) {
+                showMessage('请输入标题', 'error');
+                return;
+            }
+
+            const body = {
+                todoId: todoId,
+                title: title,
+                content: content,
+                priority: parseInt(priority)
+            };
+
+            if (deadlineInput) {
+                body.deadline = formatDateTimeForApi(deadlineInput);
+            }
 
             const response = await fetch(`${API_BASE}/update`, {
                 method: 'POST',
@@ -488,6 +698,7 @@
             const result = await response.json();
             if (result.success) {
                 showMessage('更新成功', 'success');
+                closeEditModal();
                 loadTodos();
             } else {
                 showMessage(result.message, 'error');
@@ -502,6 +713,7 @@
 
             const title = document.getElementById('broadcastTitle').value;
             const content = document.getElementById('broadcastContent').value;
+            const priority = document.getElementById('broadcastPriority').value;
             const deadlineInput = document.getElementById('broadcastDeadline').value;
 
             if (!title) {
@@ -512,7 +724,8 @@
             const body = {
                 operatorId: currentUser.userId,
                 title: title,
-                content: content
+                content: content,
+                priority: parseInt(priority)
             };
 
             if (deadlineInput) {
@@ -530,6 +743,7 @@
                 showMessage('全员推送成功', 'success');
                 document.getElementById('broadcastTitle').value = '';
                 document.getElementById('broadcastContent').value = '';
+                document.getElementById('broadcastPriority').value = '3';
                 document.getElementById('broadcastDeadline').value = '';
             } else {
                 showMessage(result.message, 'error');

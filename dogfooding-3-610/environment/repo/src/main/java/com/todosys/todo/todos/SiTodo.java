@@ -16,6 +16,7 @@ public class SiTodo implements Serializable {
     private Date updateTime;
     private boolean isBroadcast;
     private boolean reminded;
+    private SiTodoPriority priority;
 
     public SiTodo() {
         this.status = SiTodoStatus.IN_PROGRESS;
@@ -23,6 +24,7 @@ public class SiTodo implements Serializable {
         this.updateTime = new Date();
         this.isBroadcast = false;
         this.reminded = false;
+        this.priority = SiTodoPriority.NORMAL;
     }
 
     public String getId() {
@@ -103,5 +105,13 @@ public class SiTodo implements Serializable {
 
     public void setReminded(boolean reminded) {
         this.reminded = reminded;
+    }
+
+    public SiTodoPriority getPriority() {
+        return priority;
+    }
+
+    public void setPriority(SiTodoPriority priority) {
+        this.priority = priority;
     }
 }

@@ -4,6 +4,7 @@ import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
 import com.todosys.todo.map.SiUserManager;
 import com.todosys.todo.todos.SiTodo;
+import com.todosys.todo.todos.SiTodoPriority;
 import com.todosys.todo.todos.SiTodoService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -36,6 +37,7 @@ public class TodoController {
             String title = json.getString("title");
             String content = json.getString("content");
             String deadlineStr = json.getString("deadline");
+            Integer priorityLevel = json.getInteger("priority");
 
             if (userId == null || title == null) {
                 result.put("success", false);
@@ -48,7 +50,12 @@ public class TodoController {
                 deadline = dateFormat.parse(deadlineStr);
             }
 
-            SiTodo todo = todoService.createTodo(userId, title, content, deadline);
+            SiTodoPriority priority = null;
+            if (priorityLevel != null) {
+                priority = SiTodoPriority.fromLevel(priorityLevel);
+            }
+
+            SiTodo todo = todoService.createTodo(userId, title, content, deadline, priority);
             result.put("success", true);
             result.put("data", todo);
         } catch (ParseException e) {
@@ -70,6 +77,7 @@ public class TodoController {
             String title = json.getString("title");
             String content = json.getString("content");
             String deadlineStr = json.getString("deadline");
+            Integer priorityLevel = json.getInteger("priority");
 
             if (todoId == null) {
                 result.put("success", false);
@@ -82,7 +90,12 @@ public class TodoController {
                 deadline = dateFormat.parse(deadlineStr);
             }
 
-            SiTodo todo = todoService.updateTodo(todoId, title, content, deadline);
+            SiTodoPriority priority = null;
+            if (priorityLevel != null) {
+                priority = SiTodoPriority.fromLevel(priorityLevel);
+            }
+
+            SiTodo todo = todoService.updateTodo(todoId, title, content, deadline, priority);
             if (todo == null) {
                 result.put("success", false);
                 result.put("message", "待办不存在");
@@ -188,6 +201,7 @@ public class TodoController {
             String title = json.getString("title");
             String content = json.getString("content");
             String deadlineStr = json.getString("deadline");
+            Integer priorityLevel = json.getInteger("priority");
 
             if (!userManager.isAdmin(operatorId)) {
                 result.put("success", false);
@@ -206,7 +220,12 @@ public class TodoController {
                 deadline = dateFormat.parse(deadlineStr);
             }
 
-            todoService.broadcastTodo(title, content, deadline);
+            SiTodoPriority priority = null;
+            if (priorityLevel != null) {
+                priority = SiTodoPriority.fromLevel(priorityLevel);
+            }
+
+            todoService.broadcastTodo(title, content, deadline, priority);
             result.put("success", true);
             result.put("message", "全员推送成功");
         } catch (ParseException e) {
