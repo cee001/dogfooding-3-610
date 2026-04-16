@@ -19,21 +19,18 @@ public class SiTodoService {
     @Autowired
     private SiUserManager userManager;
 
-    public SiTodo createTodo(String userId, String title, String content, Date deadline, SiTodoPriority priority) {
+    public SiTodo createTodo(String userId, String title, String content, Date deadline) {
         SiTodo todo = new SiTodo();
         todo.setId(UUID.randomUUID().toString());
         todo.setUserId(userId);
         todo.setTitle(title);
         todo.setContent(content);
         todo.setDeadline(deadline);
-        if (priority != null) {
-            todo.setPriority(priority);
-        }
         cacheManager.saveTodo(todo);
         return todo;
     }
 
-    public SiTodo updateTodo(String todoId, String title, String content, Date deadline, SiTodoPriority priority) {
+    public SiTodo updateTodo(String todoId, String title, String content, Date deadline) {
         SiTodo todo = cacheManager.getTodo(todoId);
         if (todo == null) {
             return null;
@@ -46,9 +43,6 @@ public class SiTodoService {
         }
         if (deadline != null) {
             todo.setDeadline(deadline);
-        }
-        if (priority != null) {
-            todo.setPriority(priority);
         }
         todo.setUpdateTime(new Date());
         cacheManager.saveTodo(todo);
@@ -66,7 +60,6 @@ public class SiTodoService {
     public List<SiTodo> getUserTodos(String userId) {
         return cacheManager.getAllTodos().stream()
                 .filter(todo -> todo.getUserId().equals(userId))
-                .sorted((a, b) -> Integer.compare(a.getPriority().getLevel(), b.getPriority().getLevel()))
                 .collect(Collectors.toList());
     }
 
@@ -85,7 +78,7 @@ public class SiTodoService {
         return true;
     }
 
-    public void broadcastTodo(String title, String content, Date deadline, SiTodoPriority priority) {
+    public void broadcastTodo(String title, String content, Date deadline) {
         List<String> allUserIds = userManager.getAllUserIds();
         for (String userId : allUserIds) {
             SiTodo todo = new SiTodo();
@@ -95,9 +88,6 @@ public class SiTodoService {
             todo.setContent(content);
             todo.setDeadline(deadline);
             todo.setBroadcast(true);
-            if (priority != null) {
-                todo.setPriority(priority);
-            }
             cacheManager.saveTodo(todo);
         }
     }
