@@ -1,23 +1,26 @@
 package com.todosys.todo.todos;
 
-public enum SiTodoPriority {
-    URGENT(1, "紧急", "#ff4444"),
-    IMPORTANT(2, "重要但不紧急", "#ff9800"),
-    NORMAL(3, "常规", "#2196f3"),
-    LOW(4, "低优先级", "#8bc34a");
+import com.alibaba.fastjson.annotation.JSONType;
 
-    private final int level;
+@JSONType(serializeEnumAsJavaBean = true)
+public enum SiTodoPriority {
+    URGENT(1, "紧急", "#ff4757"),
+    IMPORTANT(2, "重要", "#ff9f43"),
+    NORMAL(3, "常规", "#3498db"),
+    LOW(4, "低优先级", "#2ed573");
+
+    private final int order;
     private final String label;
     private final String color;
 
-    SiTodoPriority(int level, String label, String color) {
-        this.level = level;
+    SiTodoPriority(int order, String label, String color) {
+        this.order = order;
         this.label = label;
         this.color = color;
     }
 
-    public int getLevel() {
-        return level;
+    public int getOrder() {
+        return order;
     }
 
     public String getLabel() {
@@ -28,9 +31,9 @@ public enum SiTodoPriority {
         return color;
     }
 
-    public static SiTodoPriority fromLevel(int level) {
+    public static SiTodoPriority fromOrder(int order) {
         for (SiTodoPriority priority : values()) {
-            if (priority.getLevel() == level) {
+            if (priority.order == order) {
                 return priority;
             }
         }

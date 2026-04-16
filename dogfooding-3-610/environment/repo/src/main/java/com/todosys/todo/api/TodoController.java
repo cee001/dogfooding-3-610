@@ -37,7 +37,7 @@ public class TodoController {
             String title = json.getString("title");
             String content = json.getString("content");
             String deadlineStr = json.getString("deadline");
-            Integer priorityLevel = json.getInteger("priority");
+            Integer priorityOrder = json.getInteger("priority");
 
             if (userId == null || title == null) {
                 result.put("success", false);
@@ -51,8 +51,8 @@ public class TodoController {
             }
 
             SiTodoPriority priority = null;
-            if (priorityLevel != null) {
-                priority = SiTodoPriority.fromLevel(priorityLevel);
+            if (priorityOrder != null) {
+                priority = SiTodoPriority.fromOrder(priorityOrder);
             }
 
             SiTodo todo = todoService.createTodo(userId, title, content, deadline, priority);
@@ -77,7 +77,7 @@ public class TodoController {
             String title = json.getString("title");
             String content = json.getString("content");
             String deadlineStr = json.getString("deadline");
-            Integer priorityLevel = json.getInteger("priority");
+            Integer priorityOrder = json.getInteger("priority");
 
             if (todoId == null) {
                 result.put("success", false);
@@ -91,8 +91,8 @@ public class TodoController {
             }
 
             SiTodoPriority priority = null;
-            if (priorityLevel != null) {
-                priority = SiTodoPriority.fromLevel(priorityLevel);
+            if (priorityOrder != null) {
+                priority = SiTodoPriority.fromOrder(priorityOrder);
             }
 
             SiTodo todo = todoService.updateTodo(todoId, title, content, deadline, priority);
@@ -201,7 +201,7 @@ public class TodoController {
             String title = json.getString("title");
             String content = json.getString("content");
             String deadlineStr = json.getString("deadline");
-            Integer priorityLevel = json.getInteger("priority");
+            Integer priorityOrder = json.getInteger("priority");
 
             if (!userManager.isAdmin(operatorId)) {
                 result.put("success", false);
@@ -221,8 +221,8 @@ public class TodoController {
             }
 
             SiTodoPriority priority = null;
-            if (priorityLevel != null) {
-                priority = SiTodoPriority.fromLevel(priorityLevel);
+            if (priorityOrder != null) {
+                priority = SiTodoPriority.fromOrder(priorityOrder);
             }
 
             todoService.broadcastTodo(title, content, deadline, priority);

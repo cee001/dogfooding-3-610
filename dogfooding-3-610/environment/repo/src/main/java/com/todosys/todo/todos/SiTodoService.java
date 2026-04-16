@@ -66,7 +66,10 @@ public class SiTodoService {
     public List<SiTodo> getUserTodos(String userId) {
         return cacheManager.getAllTodos().stream()
                 .filter(todo -> todo.getUserId().equals(userId))
-                .sorted((a, b) -> Integer.compare(a.getPriority().getLevel(), b.getPriority().getLevel()))
+                .sorted(Comparator.comparingInt(todo -> {
+                    SiTodoPriority p = todo.getPriority();
+                    return p != null ? p.getOrder() : SiTodoPriority.NORMAL.getOrder();
+                }))
                 .collect(Collectors.toList());
     }
 

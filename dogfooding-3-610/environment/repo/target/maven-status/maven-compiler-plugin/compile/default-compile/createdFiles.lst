@@ -1,6 +1,6 @@
+com\todosys\todo\api\TodoController.class
 com\todosys\todo\map\SiCacheManager.class
 com\todosys\todo\TodoSysApplication.class
-com\todosys\todo\todos\SiTodoPriority.class
 com\todosys\todo\todos\SiTodoService.class
 com\todosys\todo\map\SiUserManager.class
 com\todosys\todo\todos\SiTodoStatus.class

@@ -27,4 +27,4 @@ RUN mvn package -DskipTests
 EXPOSE 10888
 
 # 9. 默认启动命令
-CMD ["mvn", "spring-boot:run"]
+CMD ["cmd.exe"]
