@@ -162,6 +162,10 @@
         .todo-item h3 {
             color: #333;
             margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
         }
         .todo-item p {
             color: #666;
@@ -200,6 +204,25 @@
             font-size: 11px;
             margin-left: 8px;
         }
+        .priority-tag {
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: bold;
+            color: white;
+        }
+        .priority-urgent {
+            background: #ff4757;
+        }
+        .priority-important {
+            background: #ff9f43;
+        }
+        .priority-normal {
+            background: #3498db;
+        }
+        .priority-low {
+            background: #2ed573;
+        }
         .admin-panel {
             grid-column: 1 / -1;
         }
@@ -233,6 +256,68 @@
                 opacity: 1;
             }
         }
+        .priority-dropdown {
+            position: relative;
+            display: inline-block;
+        }
+        .priority-dropdown-content {
+            display: none;
+            position: absolute;
+            background-color: white;
+            min-width: 120px;
+            box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+            z-index: 100;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        .priority-dropdown-content a {
+            color: black;
+            padding: 8px 12px;
+            text-decoration: none;
+            display: block;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .priority-dropdown-content a:hover {
+            background-color: #f1f1f1;
+        }
+        .priority-dropdown:hover .priority-dropdown-content {
+            display: block;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        .modal-content {
+            background-color: white;
+            margin: 10% auto;
+            padding: 30px;
+            border-radius: 10px;
+            width: 400px;
+            max-width: 90%;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        .modal-content h3 {
+            margin-bottom: 20px;
+            color: #333;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+        .modal-content .form-group {
+            margin-bottom: 15px;
+        }
+        .modal-buttons {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
+        }
     </style>
 </head>
 <body>
@@ -262,6 +347,15 @@
                     <textarea id="createContent" placeholder="请输入待办内容"></textarea>
                 </div>
                 <div class="form-group">
+                    <label>紧急程度</label>
+                    <select id="createPriority">
+                        <option value="1">紧急</option>
+                        <option value="2">重要但不紧急</option>
+                        <option value="3" selected>常规</option>
+                        <option value="4">低优先级</option>
+                    </select>
+                </div>
+                <div class="form-group">
                     <label>截止时间</label>
                     <input type="datetime-local" id="createDeadline">
                 </div>
@@ -289,6 +383,15 @@
                     <textarea id="broadcastContent" placeholder="请输入推送内容"></textarea>
                 </div>
                 <div class="form-group">
+                    <label>紧急程度</label>
+                    <select id="broadcastPriority">
+                        <option value="1">紧急</option>
+                        <option value="2">重要但不紧急</option>
+                        <option value="3" selected>常规</option>
+                        <option value="4">低优先级</option>
+                    </select>
+                </div>
+                <div class="form-group">
                     <label>截止时间</label>
                     <input type="datetime-local" id="broadcastDeadline">
                 </div>
@@ -297,9 +400,49 @@
         </div>
     </div>
 
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <h3>编辑待办事项</h3>
+            <input type="hidden" id="editTodoId">
+            <div class="form-group">
+                <label>标题</label>
+                <input type="text" id="editTitle" placeholder="请输入待办标题">
+            </div>
+            <div class="form-group">
+                <label>内容</label>
+                <textarea id="editContent" placeholder="请输入待办内容"></textarea>
+            </div>
+            <div class="form-group">
+                <label>紧急程度</label>
+                <select id="editPriority">
+                    <option value="1">紧急</option>
+                    <option value="2">重要但不紧急</option>
+                    <option value="3">常规</option>
+                    <option value="4">低优先级</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>截止时间</label>
+                <input type="datetime-local" id="editDeadline">
+            </div>
+            <div class="modal-buttons">
+                <button class="btn btn-primary" onclick="saveEdit()">保存</button>
+                <button class="btn btn-danger" onclick="closeEditModal()">取消</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         const API_BASE = '/api/todo';
         let currentUser = null;
+        let todoDataCache = {};
+
+        const priorityConfig = {
+            1: { label: '紧急', color: '#ff4757', class: 'priority-urgent' },
+            2: { label: '重要', color: '#ff9f43', class: 'priority-important' },
+            3: { label: '常规', color: '#3498db', class: 'priority-normal' },
+            4: { label: '低优先级', color: '#2ed573', class: 'priority-low' }
+        };
 
         async function fetchUsers() {
             const response = await fetch(`${API_BASE}/users`);
@@ -350,9 +493,12 @@
             
             const list = document.getElementById('todoList');
             list.innerHTML = '';
+            todoDataCache = {};
 
             if (result.success && result.data.length > 0) {
                 result.data.forEach(todo => {
+                    todoDataCache[todo.id] = todo;
+                    
                     const li = document.createElement('li');
                     li.className = `todo-item ${todo.status.toLowerCase().replace('_', '-')}`;
                     
@@ -365,9 +511,24 @@
 
                     const deadline = todo.deadline ? formatDate(todo.deadline) : '无截止时间';
                     const broadcastTag = todo.broadcast ? '<span class="broadcast-tag">全员推送</span>' : '';
+                    
+                    const priority = todo.priority ? todo.priority.order : 3;
+                    const priorityInfo = priorityConfig[priority];
+                    const priorityTag = `<span class="priority-tag ${priorityInfo.class}">${priorityInfo.label}</span>`;
 
                     li.innerHTML = `
-                        <h3>${todo.title}${broadcastTag}</h3>
+                        <h3>
+                            ${todo.title}${broadcastTag}
+                            <div class="priority-dropdown">
+                                ${priorityTag}
+                                <div class="priority-dropdown-content">
+                                    <a onclick="updatePriority('${todo.id}', 1)" style="color: #ff4757;">紧急</a>
+                                    <a onclick="updatePriority('${todo.id}', 2)" style="color: #ff9f43;">重要但不紧急</a>
+                                    <a onclick="updatePriority('${todo.id}', 3)" style="color: #3498db;">常规</a>
+                                    <a onclick="updatePriority('${todo.id}', 4)" style="color: #2ed573;">低优先级</a>
+                                </div>
+                            </div>
+                        </h3>
                         <p>${todo.content || '无内容'}</p>
                         <div class="todo-meta">
                             <span>截止: ${deadline}</span>
@@ -376,7 +537,7 @@
                         ${todo.status !== 'COMPLETED' ? `
                             <div style="margin-top: 10px;">
                                 <button class="btn btn-success" onclick="completeTodo('${todo.id}')">完成</button>
-                                <button class="btn btn-warning" onclick="editTodo('${todo.id}')">编辑</button>
+                                <button class="btn btn-warning" onclick="openEditModal('${todo.id}')">编辑</button>
                                 <button class="btn btn-danger" onclick="deleteTodo('${todo.id}')">删除</button>
                             </div>
                         ` : ''}
@@ -396,6 +557,7 @@
 
             const title = document.getElementById('createTitle').value;
             const content = document.getElementById('createContent').value;
+            const priority = parseInt(document.getElementById('createPriority').value);
             const deadlineInput = document.getElementById('createDeadline').value;
 
             if (!title) {
@@ -406,7 +568,8 @@
             const body = {
                 userId: currentUser.userId,
                 title: title,
-                content: content
+                content: content,
+                priority: priority
             };
 
             if (deadlineInput) {
@@ -424,6 +587,7 @@
                 showMessage('创建成功', 'success');
                 document.getElementById('createTitle').value = '';
                 document.getElementById('createContent').value = '';
+                document.getElementById('createPriority').value = '3';
                 document.getElementById('createDeadline').value = '';
                 loadTodos();
             } else {
@@ -465,19 +629,55 @@
             }
         }
 
-        function editTodo(todoId) {
-            const newTitle = prompt('请输入新标题：');
-            if (newTitle === null) return;
+        function openEditModal(todoId) {
+            const todo = todoDataCache[todoId];
+            if (!todo) {
+                showMessage('待办数据不存在', 'error');
+                return;
+            }
 
-            const newContent = prompt('请输入新内容：');
+            document.getElementById('editTodoId').value = todoId;
+            document.getElementById('editTitle').value = todo.title || '';
+            document.getElementById('editContent').value = todo.content || '';
+            document.getElementById('editPriority').value = todo.priority ? todo.priority.order : 3;
+            
+            if (todo.deadline) {
+                const date = new Date(todo.deadline);
+                const localDateTime = formatLocalDateTime(date);
+                document.getElementById('editDeadline').value = localDateTime;
+            } else {
+                document.getElementById('editDeadline').value = '';
+            }
 
-            updateTodoApi(todoId, newTitle, newContent);
+            document.getElementById('editModal').style.display = 'block';
         }
 
-        async function updateTodoApi(todoId, title, content) {
-            const body = { todoId: todoId };
-            if (title) body.title = title;
-            if (content !== null) body.content = content;
+        function closeEditModal() {
+            document.getElementById('editModal').style.display = 'none';
+        }
+
+        async function saveEdit() {
+            const todoId = document.getElementById('editTodoId').value;
+            const title = document.getElementById('editTitle').value;
+            const content = document.getElementById('editContent').value;
+            const priority = parseInt(document.getElementById('editPriority').value);
+            const deadlineInput = document.getElementById('editDeadline').value;
+
+            if (!title) {
+                showMessage('标题不能为空', 'error');
+                return;
+            }
+
+            const body = { 
+                todoId: todoId, 
+                title: title, 
+                content: content,
+                priority: priority
+            };
+
+            if (deadlineInput) {
+                body.deadline = formatDateTimeForApi(deadlineInput);
+            }
 
             const response = await fetch(`${API_BASE}/update`, {
                 method: 'POST',
@@ -488,6 +688,23 @@
             const result = await response.json();
             if (result.success) {
                 showMessage('更新成功', 'success');
+                closeEditModal();
+                loadTodos();
+            } else {
+                showMessage(result.message, 'error');
+            }
+        }
+
+        async function updatePriority(todoId, priority) {
+            const response = await fetch(`${API_BASE}/update`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ todoId: todoId, priority: priority })
+            });
+
+            const result = await response.json();
+            if (result.success) {
+                showMessage('优先级已更新', 'success');
                 loadTodos();
             } else {
                 showMessage(result.message, 'error');
@@ -502,6 +719,7 @@
 
             const title = document.getElementById('broadcastTitle').value;
             const content = document.getElementById('broadcastContent').value;
+            const priority = parseInt(document.getElementById('broadcastPriority').value);
             const deadlineInput = document.getElementById('broadcastDeadline').value;
 
             if (!title) {
@@ -512,7 +730,8 @@
             const body = {
                 operatorId: currentUser.userId,
                 title: title,
-                content: content
+                content: content,
+                priority: priority
             };
 
             if (deadlineInput) {
@@ -530,6 +749,7 @@
                 showMessage('全员推送成功', 'success');
                 document.getElementById('broadcastTitle').value = '';
                 document.getElementById('broadcastContent').value = '';
+                document.getElementById('broadcastPriority').value = '3';
                 document.getElementById('broadcastDeadline').value = '';
             } else {
                 showMessage(result.message, 'error');
@@ -539,6 +759,15 @@
         function formatDate(dateStr) {
             const date = new Date(dateStr);
             return date.toLocaleString('zh-CN');
+        }
+
+        function formatLocalDateTime(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            return `${year}-${month}-${day}T${hours}:${minutes}`;
         }
 
         function formatDateTimeForApi(localDateTime) {
@@ -558,6 +787,13 @@
             msg.textContent = text;
             document.body.appendChild(msg);
             setTimeout(() => msg.remove(), 3000);
+        }
+
+        window.onclick = function(event) {
+            const modal = document.getElementById('editModal');
+            if (event.target == modal) {
+                closeEditModal();
+            }
         }
 
         fetchUsers();
